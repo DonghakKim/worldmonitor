@@ -1,4 +1,13 @@
-# World Monitor
+# World Monitor (한국벤더데이터 Fork)
+
+> This is a fork of [koala73/worldmonitor](https://github.com/koala73/worldmonitor) used as a microservice API backend for [한국벤더데이터](https://www.koreavendordata.com). Licensed under AGPL-3.0. All source code modifications are publicly available in this repository.
+
+### Changes from upstream
+- `tsconfig.api.json`: Added `"node"` to types for server-side TS compilation
+- `middleware.ts`: Added null guard for `og` variable
+- `api/_cors.js`: Added `koreavendordata.com` and Vercel preview domains to CORS allowlist
+
+---
 
 **Real-time global intelligence dashboard** — AI-powered news aggregation, geopolitical monitoring, and infrastructure tracking in a unified situational awareness interface.
 
