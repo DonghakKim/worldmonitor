@@ -132,6 +132,28 @@ const emptyGdeltFallback: SearchGdeltDocumentsResponse = { articles: [], query: 
 const CACHE_TTL = 5 * 60 * 1000;
 const articleCache = new Map<string, { articles: GdeltArticle[]; timestamp: number }>();
 
+async function fetchDigestIntelFallback(limit: number): Promise<GdeltArticle[]> {
+  try {
+    const url = new URL('/api/news/v1/list-feed-digest', window.location.origin);
+    url.searchParams.set('variant', 'full');
+    url.searchParams.set('lang', 'ko');
+    const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    if (!resp.ok) return [];
+    const data = await resp.json() as {
+      categories?: { intel?: { items?: Array<{ title?: string; link?: string; source?: string; publishedAt?: number }> } };
+    };
+    const items = data.categories?.intel?.items || [];
+    return items.slice(0, limit).map((item) => ({
+      title: item.title || '',
+      url: item.link || '',
+      source: item.source || 'Intel',
+      date: item.publishedAt ? new Date(item.publishedAt).toISOString() : '',
+    })).filter((item) => item.title && item.url);
+  } catch {
+    return [];
+  }
+}
+
 /** Map proto GdeltArticle (all required strings) to service GdeltArticle (optional fields) */
 function toGdeltArticle(a: ProtoGdeltArticle): GdeltArticle {
   return {
@@ -169,22 +191,35 @@ export async function fetchGdeltArticles(
 
   if (resp.error) {
     console.warn(`[GDELT-Intel] RPC error: ${resp.error}`);
+    const fallback = await fetchDigestIntelFallback(maxrecords);
+    if (fallback.length > 0) {
+      articleCache.set(cacheKey, { articles: fallback, timestamp: Date.now() });
+      return fallback;
+    }
     return cached?.articles || [];
   }
 
   const articles: GdeltArticle[] = (resp.articles || []).map(toGdeltArticle);
+  if (articles.length === 0) {
+    const fallback = await fetchDigestIntelFallback(maxrecords);
+    if (fallback.length > 0) {
+      articleCache.set(cacheKey, { articles: fallback, timestamp: Date.now() });
+      return fallback;
+    }
+  }
 
   articleCache.set(cacheKey, { articles, timestamp: Date.now() });
   return articles;
 }
 
 export async function fetchHotspotContext(hotspot: Hotspot): Promise<GdeltArticle[]> {
-  const query = hotspot.keywords.slice(0, 5).join(' OR ');
-  return fetchGdeltArticles(query, 8, '48h');
+  const terms = [...hotspot.keywords.slice(0, 5), hotspot.name].filter(Boolean);
+  const query = terms.join(' OR ');
+  return fetchGdeltArticles(query, 8, '7d');
 }
 
 export async function fetchTopicIntelligence(topic: IntelTopic): Promise<TopicIntelligence> {
-  const articles = await fetchGdeltArticles(topic.query, 10, '24h');
+  const articles = await fetchGdeltArticles(topic.query, 10, '72h');
   return {
     topic,
     articles,

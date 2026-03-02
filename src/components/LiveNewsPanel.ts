@@ -1042,6 +1042,9 @@ export class LiveNewsPanel extends Panel {
       videoId,
       autoplay: this.isPlaying ? '1' : '0',
       mute: this.isMuted ? '1' : '0',
+      hl: 'ko',
+      cc_lang_pref: 'ko',
+      cc_load_policy: '1',
     });
     if (quality !== 'auto') params.set('vq', quality);
     const embedUrl = `http://localhost:${getLocalApiPort()}/api/youtube-embed?${params.toString()}`;
@@ -1236,6 +1239,9 @@ export class LiveNewsPanel extends Panel {
         rel: 0,
         playsinline: 1,
         enablejsapi: 1,
+        hl: 'ko',
+        cc_lang_pref: 'ko',
+        cc_load_policy: 1,
         ...(this.youtubeOrigin
           ? {
             origin: this.youtubeOrigin,

@@ -562,7 +562,7 @@ export class DataLoaderManager implements AppModule {
       }
       const enabledNames = new Set(enabledFeeds.map(f => f.name));
 
-      // Digest branch: server already aggregated feeds — map proto items to client types
+      // Digest branch: server already aggregated feeds ??map proto items to client types
       if (digest?.categories && category in digest.categories) {
         let items = (digest.categories[category]?.items ?? [])
           .map(protoItemToNewsItem)
@@ -604,7 +604,7 @@ export class DataLoaderManager implements AppModule {
         return items;
       }
 
-      // Digest branch: server already aggregated feeds — map proto items to client types
+      // Digest branch: server already aggregated feeds ??map proto items to client types
       if (digest?.categories && category in digest.categories) {
         const enabledNames = new Set(enabledFeeds.map(f => f.name));
         let items = (digest.categories[category]?.items ?? [])
@@ -766,7 +766,7 @@ export class DataLoaderManager implements AppModule {
       this.ctx.happyAllItems = [];
     }
 
-    // Fire digest fetch early (non-blocking) — await before category loop
+    // Fire digest fetch early (non-blocking) ??await before category loop
     const digestPromise = this.tryFetchDigest();
 
     const categories = Object.entries(FEEDS)
@@ -940,12 +940,12 @@ export class DataLoaderManager implements AppModule {
         },
       });
 
-      const finnhubConfigMsg = 'FINNHUB_API_KEY not configured — add in Settings';
+      const finnhubConfigMsg = 'FINNHUB_API_KEY not configured ??add in Settings';
       this.ctx.latestMarkets = stocksResult.data;
       (this.ctx.panels['markets'] as MarketPanel).renderMarkets(stocksResult.data, stocksResult.rateLimited);
 
       if (stocksResult.rateLimited && stocksResult.data.length === 0) {
-        const rlMsg = 'Market data temporarily unavailable (rate limited) — retrying shortly';
+        const rlMsg = 'Market data temporarily unavailable (rate limited) ??retrying shortly';
         this.ctx.panels['heatmap']?.showError(rlMsg);
         this.ctx.panels['commodities']?.showError(rlMsg);
       } else if (stocksResult.skipped) {
@@ -1113,7 +1113,7 @@ export class DataLoaderManager implements AppModule {
         this.ctx.searchModal.registerSource('techevent', mapEvents.map((e: { id: string; title: string; location: string; startDate: string }) => ({
           id: e.id,
           title: e.title,
-          subtitle: `${e.location} • ${new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+          subtitle: `${e.location} ??${new Date(e.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
           data: e,
         })));
       }
@@ -1808,7 +1808,7 @@ export class DataLoaderManager implements AppModule {
 
       if (data.length === 0) {
         if (!isFeatureAvailable('economicFred')) {
-          economicPanel?.setErrorState(true, 'FRED_API_KEY not configured — add in Settings');
+          economicPanel?.setErrorState(true, 'FRED_API_KEY not configured ??add in Settings');
           this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
           return;
         }
@@ -1816,7 +1816,7 @@ export class DataLoaderManager implements AppModule {
         await new Promise(r => setTimeout(r, 20_000));
         const retryData = await fetchFredData();
         if (retryData.length === 0) {
-          economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
+          economicPanel?.setErrorState(true, 'FRED data unavailable (API key missing/invalid or upstream timeout) -- will retry');
           this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
           return;
         }
@@ -1847,7 +1847,7 @@ export class DataLoaderManager implements AppModule {
         } catch { /* fall through */ }
       }
       this.ctx.statusPanel?.updateApi('FRED', { status: 'error' });
-      economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
+      economicPanel?.setErrorState(true, 'FRED data unavailable (API key missing/invalid or upstream timeout) -- will retry');
       economicPanel?.setLoading(false);
     }
   }
@@ -2023,7 +2023,7 @@ export class DataLoaderManager implements AppModule {
     try {
       const fireResult = await fetchAllFires(1);
       if (fireResult.skipped) {
-        this.ctx.panels['satellite-fires']?.showConfigError('NASA_FIRMS_API_KEY not configured — add in Settings');
+        this.ctx.panels['satellite-fires']?.showConfigError('NASA_FIRMS_API_KEY not configured ??add in Settings');
         this.ctx.statusPanel?.updateApi('FIRMS', { status: 'error' });
         return;
       }
@@ -2283,3 +2283,4 @@ export class DataLoaderManager implements AppModule {
     }
   }
 }
+

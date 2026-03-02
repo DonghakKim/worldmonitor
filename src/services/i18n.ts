@@ -1,17 +1,16 @@
-import i18next from 'i18next';
+﻿import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// English is always needed as fallback — bundle it eagerly.
 import enTranslation from '../locales/en.json';
+
+type TranslationDictionary = Record<string, unknown>;
 
 const SUPPORTED_LANGUAGES = ['en', 'cs', 'fr', 'de', 'el', 'es', 'it', 'pl', 'pt', 'nl', 'sv', 'ru', 'ar', 'zh', 'ja', 'ko', 'tr', 'th', 'vi'] as const;
 type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
-type TranslationDictionary = Record<string, unknown>;
 
 const SUPPORTED_LANGUAGE_SET = new Set<SupportedLanguage>(SUPPORTED_LANGUAGES);
 const loadedLanguages = new Set<SupportedLanguage>();
 
-// Lazy-load only the locale that's actually needed — all others stay out of the bundle.
 const localeModules = import.meta.glob<TranslationDictionary>(
   ['../locales/*.json', '!../locales/en.json'],
   { import: 'default' },
@@ -20,11 +19,11 @@ const localeModules = import.meta.glob<TranslationDictionary>(
 const RTL_LANGUAGES = new Set(['ar']);
 
 function normalizeLanguage(lng: string): SupportedLanguage {
-  const base = (lng || 'en').split('-')[0]?.toLowerCase() || 'en';
+  const base = (lng || 'ko').split('-')[0]?.toLowerCase() || 'ko';
   if (SUPPORTED_LANGUAGE_SET.has(base as SupportedLanguage)) {
     return base as SupportedLanguage;
   }
-  return 'en';
+  return 'ko';
 }
 
 function applyDocumentDirection(lang: string): void {
@@ -61,10 +60,9 @@ async function ensureLanguageLoaded(lng: string): Promise<SupportedLanguage> {
   return normalized;
 }
 
-// Initialize i18n
 export async function initI18n(): Promise<void> {
   if (i18next.isInitialized) {
-    const currentLanguage = normalizeLanguage(i18next.language || 'en');
+    const currentLanguage = normalizeLanguage(i18next.language || 'ko');
     await ensureLanguageLoaded(currentLanguage);
     applyDocumentDirection(i18next.language || currentLanguage);
     return;
@@ -80,42 +78,39 @@ export async function initI18n(): Promise<void> {
       },
       supportedLngs: [...SUPPORTED_LANGUAGES],
       nonExplicitSupportedLngs: true,
-      fallbackLng: 'en',
+      fallbackLng: 'ko',
       debug: import.meta.env.DEV,
       interpolation: {
-        escapeValue: false, // not needed for these simple strings
+        escapeValue: false,
       },
       detection: {
-        order: ['localStorage', 'navigator'],
+        order: ['querystring', 'localStorage'],
+        lookupQuerystring: 'lang',
         caches: ['localStorage'],
       },
     });
 
-  const detectedLanguage = await ensureLanguageLoaded(i18next.language || 'en');
-  if (detectedLanguage !== 'en') {
-    // Re-trigger translation resolution now that the detected bundle is loaded.
+  const detectedLanguage = await ensureLanguageLoaded(i18next.language || 'ko');
+  if (detectedLanguage !== 'ko') {
     await i18next.changeLanguage(detectedLanguage);
   }
 
   applyDocumentDirection(i18next.language || detectedLanguage);
 }
 
-// Helper to translate
 export function t(key: string, options?: Record<string, unknown>): string {
   return i18next.t(key, options);
 }
 
-// Helper to change language
 export async function changeLanguage(lng: string): Promise<void> {
   const normalized = await ensureLanguageLoaded(lng);
   await i18next.changeLanguage(normalized);
   applyDocumentDirection(normalized);
-  window.location.reload(); // Simple reload to update all components for now
+  window.location.reload();
 }
 
-// Helper to get current language (normalized to short code)
 export function getCurrentLanguage(): string {
-  const lang = i18next.language || 'en';
+  const lang = i18next.language || 'ko';
   return lang.split('-')[0]!;
 }
 
@@ -125,28 +120,39 @@ export function isRTL(): boolean {
 
 export function getLocale(): string {
   const lang = getCurrentLanguage();
-  const map: Record<string, string> = { en: 'en-US', cs: 'cs-CZ', el: 'el-GR', zh: 'zh-CN', pt: 'pt-BR', ja: 'ja-JP', ko: 'ko-KR', tr: 'tr-TR', th: 'th-TH', vi: 'vi-VN' };
+  const map: Record<string, string> = {
+    en: 'en-US',
+    cs: 'cs-CZ',
+    el: 'el-GR',
+    zh: 'zh-CN',
+    pt: 'pt-BR',
+    ja: 'ja-JP',
+    ko: 'ko-KR',
+    tr: 'tr-TR',
+    th: 'th-TH',
+    vi: 'vi-VN',
+  };
   return map[lang] || lang;
 }
 
 export const LANGUAGES = [
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'ar', label: 'العربية', flag: '🇸🇦' },
-  { code: 'cs', label: 'Čeština', flag: '🇨🇿' },
-  { code: 'zh', label: '中文', flag: '🇨🇳' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-  { code: 'el', label: 'Ελληνικά', flag: '🇬🇷' },
-  { code: 'es', label: 'Español', flag: '🇪🇸' },
-  { code: 'it', label: 'Italiano', flag: '🇮🇹' },
-  { code: 'pl', label: 'Polski', flag: '🇵🇱' },
-  { code: 'pt', label: 'Português', flag: '🇵🇹' },
-  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
-  { code: 'sv', label: 'Svenska', flag: '🇸🇪' },
-  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
-  { code: 'ja', label: '日本語', flag: '🇯🇵' },
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
-  { code: 'th', label: 'ไทย', flag: '🇹🇭' },
-  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
-  { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'ko', label: 'Korean', flag: 'KR' },
+  { code: 'en', label: 'English', flag: 'EN' },
+  { code: 'ar', label: 'Arabic', flag: 'AR' },
+  { code: 'cs', label: 'Czech', flag: 'CZ' },
+  { code: 'zh', label: 'Chinese', flag: 'CN' },
+  { code: 'fr', label: 'French', flag: 'FR' },
+  { code: 'de', label: 'German', flag: 'DE' },
+  { code: 'el', label: 'Greek', flag: 'GR' },
+  { code: 'es', label: 'Spanish', flag: 'ES' },
+  { code: 'it', label: 'Italian', flag: 'IT' },
+  { code: 'pl', label: 'Polish', flag: 'PL' },
+  { code: 'pt', label: 'Portuguese', flag: 'PT' },
+  { code: 'nl', label: 'Dutch', flag: 'NL' },
+  { code: 'sv', label: 'Swedish', flag: 'SE' },
+  { code: 'ru', label: 'Russian', flag: 'RU' },
+  { code: 'ja', label: 'Japanese', flag: 'JP' },
+  { code: 'th', label: 'Thai', flag: 'TH' },
+  { code: 'tr', label: 'Turkish', flag: 'TR' },
+  { code: 'vi', label: 'Vietnamese', flag: 'VN' },
 ];

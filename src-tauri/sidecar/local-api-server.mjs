@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 import http, { createServer } from 'node:http';
 import https from 'node:https';
 import dns from 'node:dns/promises';
@@ -110,12 +110,12 @@ const ALLOWED_ENV_KEYS = new Set([
 
 const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-// ── SSRF protection ──────────────────────────────────────────────────────
+// ?? SSRF protection ??????????????????????????????????????????????????????
 // Block requests to private/reserved IP ranges to prevent the RSS proxy
 // from being used as a localhost pivot or internal network scanner.
 
 function isPrivateIP(ip) {
-  // IPv4-mapped IPv6 — extract the v4 portion
+  // IPv4-mapped IPv6 ??extract the v4 portion
   const v4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
   const addr = v4Mapped ? v4Mapped[1] : ip;
 
@@ -171,7 +171,7 @@ async function isSafeUrl(urlString) {
     return { safe: false, reason: 'Requests to private/reserved IP addresses are not allowed' };
   }
 
-  // DNS resolution check — resolve the hostname and verify all resolved IPs
+  // DNS resolution check ??resolve the hostname and verify all resolved IPs
   // are public. This prevents DNS rebinding attacks where a public domain
   // resolves to a private IP.
   let addresses = [];
@@ -179,7 +179,7 @@ async function isSafeUrl(urlString) {
     try {
       const v4 = await dns.resolve4(hostname);
       addresses = addresses.concat(v4);
-    } catch { /* no A records — try AAAA */ }
+    } catch { /* no A records ??try AAAA */ }
     try {
       const v6 = await dns.resolve6(hostname);
       addresses = addresses.concat(v6);
@@ -402,7 +402,7 @@ function loadVerboseState(dataDir) {
   try {
     const data = JSON.parse(readFileSync(_verboseStatePath, 'utf-8'));
     verboseMode = !!data.verboseMode;
-  } catch { /* file missing or invalid — keep default false */ }
+  } catch { /* file missing or invalid ??keep default false */ }
 }
 
 function saveVerboseState() {
@@ -415,7 +415,7 @@ function recordTraffic(entry) {
   if (trafficLog.length > TRAFFIC_LOG_MAX) trafficLog.shift();
   if (verboseMode) {
     const ts = entry.timestamp.split('T')[1].replace('Z', '');
-    console.log(`[traffic] ${ts} ${entry.method} ${entry.path} → ${entry.status} ${entry.durationMs}ms`);
+    console.log(`[traffic] ${ts} ${entry.method} ${entry.path} ??${entry.status} ${entry.durationMs}ms`);
   }
 }
 
@@ -424,9 +424,9 @@ function logOnce(logger, route, message) {
   const count = (fallbackCounts.get(key) || 0) + 1;
   fallbackCounts.set(key, count);
   if (count === 1) {
-    logger.warn(`[local-api] ${route} → ${message}`);
+    logger.warn(`[local-api] ${route} ??${message}`);
   } else if (count === 5 || count % 100 === 0) {
-    logger.warn(`[local-api] ${route} → ${message} (x${count})`);
+    logger.warn(`[local-api] ${route} ??${message} (x${count})`);
   }
 }
 
@@ -504,9 +504,9 @@ async function tryCloudFallback(requestUrl, req, context, reason) {
       const brief = reason instanceof Error
         ? (reason.code === 'ERR_MODULE_NOT_FOUND' ? 'missing npm dependency' : reason.message)
         : reason;
-      context.logger.warn(`[local-api] ${route} → cloud (${brief})`);
+      context.logger.warn(`[local-api] ${route} ??cloud (${brief})`);
     } else if (count === 5 || count % 100 === 0) {
-      context.logger.warn(`[local-api] ${route} → cloud x${count}`);
+      context.logger.warn(`[local-api] ${route} ??cloud x${count}`);
     }
   }
   try {
@@ -545,7 +545,7 @@ function makeCorsHeaders(req) {
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
-  // Use node:https with IPv4 forced — Node.js built-in fetch (undici) tries IPv6
+  // Use node:https with IPv4 forced ??Node.js built-in fetch (undici) tries IPv6
   // first and some servers (EIA, NASA FIRMS) have broken IPv6 causing ETIMEDOUT.
   const u = new URL(url);
   if (u.protocol === 'https:') {
@@ -955,12 +955,12 @@ async function dispatch(requestUrl, req, routes, context) {
     return new Response(null, { status: 204, headers: makeCorsHeaders(req) });
   }
 
-  // Health check — exempt from auth to support external monitoring tools
+  // Health check ??exempt from auth to support external monitoring tools
   if (requestUrl.pathname === '/api/service-status') {
     return handleLocalServiceStatus(context);
   }
 
-  // HLS proxy — exempt from auth because <video src="..."> cannot carry
+  // HLS proxy ??exempt from auth because <video src="..."> cannot carry
   // custom headers.  Proxies HLS manifests and segments from allowlisted CDN
   // hosts, adding the required Referer header that browsers cannot set.
   // Desktop-only (sidecar); web uses YouTube fallback.
@@ -1018,7 +1018,7 @@ async function dispatch(requestUrl, req, routes, context) {
     }
   }
 
-  // YouTube embed bridge — exempt from auth because iframe src cannot carry
+  // YouTube embed bridge ??exempt from auth because iframe src cannot carry
   // Authorization headers.  Serves a minimal HTML page that loads the YouTube
   // IFrame Player API from a localhost origin (which YouTube accepts, unlike
   // tauri://localhost).  No sensitive data is exposed.
@@ -1029,13 +1029,16 @@ async function dispatch(requestUrl, req, routes, context) {
     }
     const autoplay = requestUrl.searchParams.get('autoplay') === '0' ? '0' : '1';
     const mute = requestUrl.searchParams.get('mute') === '0' ? '0' : '1';
+    const hl = /^[a-z]{2}$/i.test(requestUrl.searchParams.get('hl') || '') ? (requestUrl.searchParams.get('hl') || 'ko') : 'ko';
+    const ccLangPref = /^[a-z]{2}$/i.test(requestUrl.searchParams.get('cc_lang_pref') || '') ? (requestUrl.searchParams.get('cc_lang_pref') || 'ko') : 'ko';
+    const ccLoadPolicy = requestUrl.searchParams.get('cc_load_policy') === '0' ? '0' : '1';
     const vq = ['small','medium','large','hd720','hd1080'].includes(requestUrl.searchParams.get('vq') || '') ? requestUrl.searchParams.get('vq') : '';
     const origin = `http://localhost:${context.port}`;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}#player{width:100%;height:100%}#play-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.15)}#play-overlay svg{width:72px;height:72px;opacity:0.9;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5))}#play-overlay.hidden{display:none}</style></head><body><div id="player"></div><div id="play-overlay" class="hidden"><svg viewBox="0 0 68 48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="red"/><path d="M45 24L27 14v20" fill="#fff"/></svg></div><script>var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';document.head.appendChild(tag);var player,overlay=document.getElementById('play-overlay'),started=false,muteSyncId,retryTimers=[];var obs=new MutationObserver(function(muts){for(var i=0;i<muts.length;i++){var nodes=muts[i].addedNodes;for(var j=0;j<nodes.length;j++){if(nodes[j].tagName==='IFRAME'){var a=nodes[j].getAttribute('allow')||'';if(a.indexOf('autoplay')===-1){nodes[j].setAttribute('allow','autoplay; encrypted-media; picture-in-picture '+a);console.log('[yt-embed] patched iframe allow=autoplay')}obs.disconnect();return}}}});obs.observe(document.getElementById('player'),{childList:true,subtree:true});function hideOverlay(){overlay.classList.add('hidden')}function readMuted(){if(!player)return null;if(typeof player.isMuted==='function')return player.isMuted();if(typeof player.getVolume==='function')return player.getVolume()===0;return null}function stopMuteSync(){if(muteSyncId){clearInterval(muteSyncId);muteSyncId=null}}function startMuteSync(){if(muteSyncId)return;var last=readMuted();if(last!==null)window.parent.postMessage({type:'yt-mute-state',muted:last},'*');muteSyncId=setInterval(function(){var m=readMuted();if(m!==null&&m!==last){last=m;window.parent.postMessage({type:'yt-mute-state',muted:m},'*')}},500)}function tryAutoplay(){if(!player||!player.playVideo)return;try{player.mute();player.playVideo();console.log('[yt-embed] tryAutoplay: mute+play')}catch(e){}}function onYouTubeIframeAPIReady(){player=new YT.Player('player',{videoId:'${videoId}',host:'https://www.youtube.com',playerVars:{autoplay:${autoplay},mute:${mute},playsinline:1,rel:0,controls:1,modestbranding:1,enablejsapi:1,origin:'${origin}',widget_referrer:'${origin}'},events:{onReady:function(){console.log('[yt-embed] onReady');window.parent.postMessage({type:'yt-ready'},'*');${vq ? `if(player.setPlaybackQuality)player.setPlaybackQuality('${vq}');` : ''}if(${autoplay}===1){tryAutoplay();retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},500));retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},1500));retryTimers.push(setTimeout(function(){if(!started){console.log('[yt-embed] autoplay failed after retries');window.parent.postMessage({type:'yt-autoplay-failed'},'*')}},2500))}startMuteSync()},onError:function(e){console.log('[yt-embed] error code='+e.data);stopMuteSync();window.parent.postMessage({type:'yt-error',code:e.data},'*')},onStateChange:function(e){window.parent.postMessage({type:'yt-state',state:e.data},'*');if(e.data===1||e.data===3){hideOverlay();started=true;retryTimers.forEach(clearTimeout);retryTimers=[]}}}})}setTimeout(function(){if(!started)overlay.classList.remove('hidden')},4000);window.addEventListener('message',function(e){if(!player||!player.getPlayerState)return;var m=e.data;if(!m||!m.type)return;switch(m.type){case'play':player.playVideo();break;case'pause':player.pauseVideo();break;case'mute':player.mute();break;case'unmute':player.unMute();break;case'loadVideo':if(m.videoId)player.loadVideoById(m.videoId);break;case'setQuality':if(m.quality&&player.setPlaybackQuality)player.setPlaybackQuality(m.quality);break}});window.addEventListener('beforeunload',function(){stopMuteSync();obs.disconnect();retryTimers.forEach(clearTimeout)})<\/script></body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}#player{width:100%;height:100%}#play-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.15)}#play-overlay svg{width:72px;height:72px;opacity:0.9;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5))}#play-overlay.hidden{display:none}</style></head><body><div id="player"></div><div id="play-overlay" class="hidden"><svg viewBox="0 0 68 48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="red"/><path d="M45 24L27 14v20" fill="#fff"/></svg></div><script>var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';document.head.appendChild(tag);var player,overlay=document.getElementById('play-overlay'),started=false,muteSyncId,retryTimers=[];var obs=new MutationObserver(function(muts){for(var i=0;i<muts.length;i++){var nodes=muts[i].addedNodes;for(var j=0;j<nodes.length;j++){if(nodes[j].tagName==='IFRAME'){var a=nodes[j].getAttribute('allow')||'';if(a.indexOf('autoplay')===-1){nodes[j].setAttribute('allow','autoplay; encrypted-media; picture-in-picture '+a);console.log('[yt-embed] patched iframe allow=autoplay')}obs.disconnect();return}}}});obs.observe(document.getElementById('player'),{childList:true,subtree:true});function hideOverlay(){overlay.classList.add('hidden')}function readMuted(){if(!player)return null;if(typeof player.isMuted==='function')return player.isMuted();if(typeof player.getVolume==='function')return player.getVolume()===0;return null}function stopMuteSync(){if(muteSyncId){clearInterval(muteSyncId);muteSyncId=null}}function startMuteSync(){if(muteSyncId)return;var last=readMuted();if(last!==null)window.parent.postMessage({type:'yt-mute-state',muted:last},'*');muteSyncId=setInterval(function(){var m=readMuted();if(m!==null&&m!==last){last=m;window.parent.postMessage({type:'yt-mute-state',muted:m},'*')}},500)}function tryAutoplay(){if(!player||!player.playVideo)return;try{player.mute();player.playVideo();console.log('[yt-embed] tryAutoplay: mute+play')}catch(e){}}function onYouTubeIframeAPIReady(){player=new YT.Player('player',{videoId:'${videoId}',host:'https://www.youtube.com',playerVars:{autoplay:${autoplay},mute:${mute},playsinline:1,rel:0,controls:1,modestbranding:1,enablejsapi:1,hl:'${hl}',cc_lang_pref:'${ccLangPref}',cc_load_policy:${ccLoadPolicy},origin:'${origin}',widget_referrer:'${origin}'},events:{onReady:function(){console.log('[yt-embed] onReady');window.parent.postMessage({type:'yt-ready'},'*');${vq ? `if(player.setPlaybackQuality)player.setPlaybackQuality('${vq}');` : ''}if(${autoplay}===1){tryAutoplay();retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},500));retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},1500));retryTimers.push(setTimeout(function(){if(!started){console.log('[yt-embed] autoplay failed after retries');window.parent.postMessage({type:'yt-autoplay-failed'},'*')}},2500))}startMuteSync()},onError:function(e){console.log('[yt-embed] error code='+e.data);stopMuteSync();window.parent.postMessage({type:'yt-error',code:e.data},'*')},onStateChange:function(e){window.parent.postMessage({type:'yt-state',state:e.data},'*');if(e.data===1||e.data===3){hideOverlay();started=true;retryTimers.forEach(clearTimeout);retryTimers=[]}}}})}setTimeout(function(){if(!started)overlay.classList.remove('hidden')},4000);window.addEventListener('message',function(e){if(!player||!player.getPlayerState)return;var m=e.data;if(!m||!m.type)return;switch(m.type){case'play':player.playVideo();break;case'pause':player.pauseVideo();break;case'mute':player.mute();break;case'unmute':player.unMute();break;case'loadVideo':if(m.videoId)player.loadVideoById(m.videoId);break;case'setQuality':if(m.quality&&player.setPlaybackQuality)player.setPlaybackQuality(m.quality);break}});window.addEventListener('beforeunload',function(){stopMuteSync();obs.disconnect();retryTimers.forEach(clearTimeout)})<\/script></body></html>`;
     return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'permissions-policy': 'autoplay=*, encrypted-media=*', ...makeCorsHeaders(req) } });
   }
 
-  // ── Global auth gate ────────────────────────────────────────────────────
+  // ?? Global auth gate ????????????????????????????????????????????????????
   // Every endpoint below requires a valid LOCAL_API_TOKEN.  This prevents
   // other local processes, malicious browser scripts, and rogue extensions
   // from accessing the sidecar API without the per-session token.
@@ -1080,7 +1083,7 @@ async function dispatch(requestUrl, req, routes, context) {
     }
     return json({ verboseMode });
   }
-  // Registration — call Convex directly when CONVEX_URL is available (self-hosted),
+  // Registration ??call Convex directly when CONVEX_URL is available (self-hosted),
   // otherwise proxy to cloud (desktop sidecar never has CONVEX_URL).
   if (requestUrl.pathname === '/api/register-interest' && req.method === 'POST') {
     const convexUrl = process.env.CONVEX_URL;
@@ -1123,7 +1126,7 @@ async function dispatch(requestUrl, req, routes, context) {
     }
   }
 
-  // RSS proxy — fetch public feeds with SSRF protection
+  // RSS proxy ??fetch public feeds with SSRF protection
   if (requestUrl.pathname === '/api/rss-proxy') {
     const feedUrl = requestUrl.searchParams.get('url');
     if (!feedUrl) return json({ error: 'Missing url parameter' }, 400);
@@ -1260,7 +1263,7 @@ async function dispatch(requestUrl, req, routes, context) {
     return response;
   } catch (error) {
     const reason = error.code === 'ERR_MODULE_NOT_FOUND' ? 'missing dependency' : error.message;
-    context.logger.error(`[local-api] ${requestUrl.pathname} → ${reason}`);
+    context.logger.error(`[local-api] ${requestUrl.pathname} ??${reason}`);
     if (context.cloudFallback) {
       const cloudResponse = await tryCloudFallback(requestUrl, req, context, error);
       if (cloudResponse) { cloudPreferred.add(requestUrl.pathname); return cloudResponse; }
@@ -1391,3 +1394,6 @@ if (isMainModule()) {
     process.exit(1);
   }
 }
+
+
+

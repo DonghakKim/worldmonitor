@@ -32,6 +32,7 @@ interface ParsedItem {
   title: string;
   link: string;
   publishedAt: number;
+  langPriority: number;
   isAlert: boolean;
   level: ThreatLevel;
   category: string;
@@ -39,12 +40,28 @@ interface ParsedItem {
   classSource: 'keyword';
 }
 
+function localizeGoogleNewsUrl(rawUrl: string, lang: string): string {
+  if (lang !== 'ko') return rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    if (url.hostname !== 'news.google.com') return rawUrl;
+    url.searchParams.set('hl', 'ko');
+    url.searchParams.set('gl', 'KR');
+    url.searchParams.set('ceid', 'KR:ko');
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 async function fetchAndParseRss(
   feed: ServerFeed,
   variant: string,
+  lang: string,
   signal: AbortSignal,
 ): Promise<ParsedItem[]> {
-  const cacheKey = `rss:feed:v1:${feed.url}`;
+  const localizedUrl = localizeGoogleNewsUrl(feed.url, lang);
+  const cacheKey = `rss:feed:v1:${localizedUrl}`;
 
   try {
     const cached = await cachedFetchJson<ParsedItem[]>(cacheKey, 600, async () => {
@@ -55,7 +72,7 @@ async function fetchAndParseRss(
       signal.addEventListener('abort', onAbort, { once: true });
 
       try {
-        const resp = await fetch(feed.url, {
+        const resp = await fetch(localizedUrl, {
           headers: {
             'User-Agent': CHROME_UA,
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
@@ -66,7 +83,7 @@ async function fetchAndParseRss(
         if (!resp.ok) return null;
 
         const text = await resp.text();
-        return parseRssXml(text, feed, variant);
+        return parseRssXml(text, feed, variant, lang);
       } finally {
         clearTimeout(timeout);
         signal.removeEventListener('abort', onAbort);
@@ -79,8 +96,9 @@ async function fetchAndParseRss(
   }
 }
 
-function parseRssXml(xml: string, feed: ServerFeed, variant: string): ParsedItem[] | null {
+function parseRssXml(xml: string, feed: ServerFeed, variant: string, lang: string): ParsedItem[] | null {
   const items: ParsedItem[] = [];
+  const langPriority = feed.lang && feed.lang === lang ? 1 : 0;
 
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
   const entryRegex = /<entry[\s>]([\s\S]*?)<\/entry>/gi;
@@ -117,6 +135,7 @@ function parseRssXml(xml: string, feed: ServerFeed, variant: string): ParsedItem
       title,
       link,
       publishedAt,
+      langPriority,
       isAlert,
       level: threat.level,
       category: threat.category,
@@ -234,7 +253,7 @@ async function buildDigest(variant: string, lang: string): Promise<ListFeedDiges
       const batch = allEntries.slice(i, i + BATCH_CONCURRENCY);
       const settled = await Promise.allSettled(
         batch.map(async ({ category, feed }) => {
-          const items = await fetchAndParseRss(feed, variant, deadlineController.signal);
+          const items = await fetchAndParseRss(feed, variant, lang, deadlineController.signal);
           feedStatuses[feed.name] = items.length > 0 ? 'ok' : 'empty';
           return { category, items };
         }),
@@ -257,7 +276,7 @@ async function buildDigest(variant: string, lang: string): Promise<ListFeedDiges
     }
 
     for (const [category, items] of results) {
-      items.sort((a, b) => b.publishedAt - a.publishedAt);
+      items.sort((a, b) => b.langPriority - a.langPriority || b.publishedAt - a.publishedAt);
       categories[category] = {
         items: items.slice(0, MAX_ITEMS_PER_CATEGORY).map(toProtoItem),
       };

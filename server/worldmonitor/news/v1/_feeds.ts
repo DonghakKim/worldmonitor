@@ -6,10 +6,14 @@ export interface ServerFeed {
 
 const gn = (q: string) =>
   `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
+const gnKo = (q: string) =>
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=ko&gl=KR&ceid=KR:ko`;
 
 export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
   full: {
     politics: [
+      { name: 'Google News Korea World', url: gnKo('국제 뉴스 속보'), lang: 'ko' },
+      { name: 'Google News Korea Diplomacy', url: gnKo('외교 안보 국제정치'), lang: 'ko' },
       { name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
       { name: 'Guardian World', url: 'https://www.theguardian.com/world/rss' },
       { name: 'AP News', url: gn('site:apnews.com') },
@@ -34,12 +38,14 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'Oman Observer', url: 'https://www.omanobserver.om/rssFeed/1' },
     ],
     tech: [
+      { name: 'Google News Korea Tech', url: gnKo('IT 기술 스타트업 인공지능'), lang: 'ko' },
       { name: 'Hacker News', url: 'https://hnrss.org/frontpage' },
       { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab' },
       { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
       { name: 'MIT Tech Review', url: 'https://www.technologyreview.com/feed/' },
     ],
     ai: [
+      { name: 'Google News Korea AI', url: gnKo('인공지능 AI 생성형AI 오픈AI'), lang: 'ko' },
       { name: 'AI News', url: gn('(OpenAI OR Anthropic OR Google AI OR "large language model" OR ChatGPT) when:2d') },
       { name: 'VentureBeat AI', url: 'https://venturebeat.com/category/ai/feed/' },
       { name: 'The Verge AI', url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml' },
@@ -47,6 +53,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'ArXiv AI', url: 'https://export.arxiv.org/rss/cs.AI' },
     ],
     finance: [
+      { name: 'Google News Korea Finance', url: gnKo('금융 증시 환율 경제 속보'), lang: 'ko' },
       { name: 'CNBC', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
       { name: 'MarketWatch', url: gn('site:marketwatch.com markets when:1d') },
       { name: 'Yahoo Finance', url: 'https://finance.yahoo.com/news/rssindex' },
@@ -138,6 +145,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
 
   finance: {
     markets: [
+      { name: 'Google News Korea Markets', url: gnKo('한국 증시 코스피 코스닥 뉴욕증시'), lang: 'ko' },
       { name: 'CNBC', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
       { name: 'Yahoo Finance', url: 'https://finance.yahoo.com/rss/topstories' },
       { name: 'Seeking Alpha', url: 'https://seekingalpha.com/market_currents.xml' },
@@ -160,6 +168,7 @@ export const VARIANT_FEEDS: Record<string, Record<string, ServerFeed[]>> = {
       { name: 'Federal Reserve', url: 'https://www.federalreserve.gov/feeds/press_all.xml' },
     ],
     economic: [
+      { name: 'Google News Korea Economy', url: gnKo('한국 경제 물가 금리 고용'), lang: 'ko' },
       { name: 'Economic Data', url: gn('(CPI OR inflation OR GDP OR "economic data" OR "jobs report") when:2d') },
     ],
     ipo: [

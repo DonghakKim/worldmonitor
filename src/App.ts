@@ -66,6 +66,26 @@ export class App {
 
     const PANEL_ORDER_KEY = 'panel-order';
     const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
+    const initialUrlParams = new URLSearchParams(window.location.search);
+
+    // Optional embed override: pin selected panels into the bottom grid zone.
+    // Example: ?bottomPanels=supply-chain,commodities,heatmap&lockBottomPanels=1
+    const bottomPanelsParam = initialUrlParams.get('bottomPanels');
+    const lockBottomPanels = initialUrlParams.get('lockBottomPanels') === '1';
+    if (bottomPanelsParam && lockBottomPanels) {
+      const requested = bottomPanelsParam
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const validBottomPanels = requested.filter((key) => key in DEFAULT_PANELS && key !== 'map');
+      if (validBottomPanels.length > 0) {
+        const defaultOrder = Object.keys(DEFAULT_PANELS).filter(k => k !== 'map');
+        const pinnedSet = new Set(validBottomPanels);
+        const sidebarOrder = defaultOrder.filter(k => !pinnedSet.has(k));
+        localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(sidebarOrder));
+        localStorage.setItem(`${PANEL_ORDER_KEY}-bottom`, JSON.stringify(validBottomPanels));
+      }
+    }
 
     const isMobile = isMobileDevice();
     const isDesktopApp = isDesktopRuntime();
@@ -156,9 +176,26 @@ export class App {
       }
     }
 
+    if (bottomPanelsParam && lockBottomPanels) {
+      const requested = bottomPanelsParam
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      let changed = false;
+      for (const key of requested) {
+        if (panelSettings[key] && panelSettings[key]!.enabled === false) {
+          panelSettings[key] = { ...panelSettings[key]!, enabled: true };
+          changed = true;
+        }
+      }
+      if (changed) {
+        saveToStorage(STORAGE_KEYS.panels, panelSettings);
+      }
+    }
+
     // One-time migration: clear stale panel ordering and sizing state
     const LAYOUT_RESET_MIGRATION_KEY = 'worldmonitor-layout-reset-v2.5';
-    if (!localStorage.getItem(LAYOUT_RESET_MIGRATION_KEY)) {
+    if (!localStorage.getItem(LAYOUT_RESET_MIGRATION_KEY) && !lockBottomPanels) {
       const hadSavedOrder = !!localStorage.getItem(PANEL_ORDER_KEY);
       const hadSavedSpans = !!localStorage.getItem(PANEL_SPANS_KEY);
       if (hadSavedOrder || hadSavedSpans) {
@@ -166,6 +203,8 @@ export class App {
         localStorage.removeItem(PANEL_SPANS_KEY);
         console.log('[App] Applied layout reset migration (v2.5): cleared panel order/spans');
       }
+      localStorage.setItem(LAYOUT_RESET_MIGRATION_KEY, 'done');
+    } else if (!localStorage.getItem(LAYOUT_RESET_MIGRATION_KEY) && lockBottomPanels) {
       localStorage.setItem(LAYOUT_RESET_MIGRATION_KEY, 'done');
     }
 
@@ -179,6 +218,41 @@ export class App {
       runtimePanel.enabled = true;
       panelSettings['runtime-config'] = runtimePanel;
       saveToStorage(STORAGE_KEYS.panels, panelSettings);
+    }
+
+    // One-time migration: ensure core panels remain visible for each variant.
+    // This recovers users whose local panel settings accidentally hid critical panels.
+    const REQUIRED_PANELS_BY_VARIANT: Record<string, string[]> = {
+      full: ['strategic-posture', 'population-exposure', 'satellite-fires', 'economic', 'trade-policy'],
+      finance: ['economic', 'trade-policy'],
+      tech: ['economic'],
+      happy: [],
+    };
+    const REQUIRED_PANELS_MIGRATION_KEY = `worldmonitor-required-panels-v1:${currentVariant}`;
+    if (!localStorage.getItem(REQUIRED_PANELS_MIGRATION_KEY)) {
+      const requiredPanels = REQUIRED_PANELS_BY_VARIANT[currentVariant] ?? [];
+      let changed = false;
+      for (const key of requiredPanels) {
+        const defaultPanel = DEFAULT_PANELS[key];
+        if (!defaultPanel) continue;
+        if (!panelSettings[key]) {
+          panelSettings[key] = { ...defaultPanel, enabled: true };
+          changed = true;
+          continue;
+        }
+        if (panelSettings[key]!.enabled === false) {
+          panelSettings[key] = { ...panelSettings[key]!, enabled: true };
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        saveToStorage(STORAGE_KEYS.panels, panelSettings);
+        localStorage.removeItem(PANEL_ORDER_KEY);
+        localStorage.removeItem(PANEL_SPANS_KEY);
+        console.log('[App] Restored required panels and reset stale layout state');
+      }
+      localStorage.setItem(REQUIRED_PANELS_MIGRATION_KEY, 'done');
     }
 
     let initialUrlState: ParsedMapUrlState | null = parseMapUrlState(window.location.search, mapLayers);
