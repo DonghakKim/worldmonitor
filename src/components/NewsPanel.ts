@@ -15,6 +15,18 @@ const VIRTUAL_SCROLL_THRESHOLD = 15;
 /** Summary cache TTL in milliseconds (10 minutes) */
 const SUMMARY_CACHE_TTL = 10 * 60 * 1000;
 
+/** In-memory translation cache to avoid re-translating identical titles */
+const translationCache = new Map<string, string>();
+
+/** Whether auto-translate is enabled via URL param */
+const AUTO_TRANSLATE_ENABLED = new URLSearchParams(window.location.search).get('autoTranslate') === '1';
+
+/** Max concurrent auto-translation requests */
+const AUTO_TRANSLATE_CONCURRENCY = 3;
+
+/** Delay between translation batches in ms */
+const AUTO_TRANSLATE_STAGGER_MS = 150;
+
 /** Prepared cluster data for rendering */
 interface PreparedCluster {
   cluster: ClusteredEvent;
@@ -43,6 +55,9 @@ export class NewsPanel extends Panel {
   private currentHeadlines: string[] = [];
   private lastHeadlineSignature = '';
   private isSummarizing = false;
+
+  // Auto-translation
+  private autoTranslateAbort: AbortController | null = null;
 
   constructor(id: string, title: string) {
     super({ id, title, showCount: true, trackActivity: true });
@@ -212,6 +227,82 @@ export class NewsPanel extends Panel {
     }
   }
 
+  private scheduleAutoTranslate(): void {
+    if (!AUTO_TRANSLATE_ENABLED) return;
+    const currentLang = getCurrentLanguage();
+    if (currentLang === 'en') return;
+
+    this.autoTranslateAbort?.abort();
+    const controller = new AbortController();
+    this.autoTranslateAbort = controller;
+
+    const btns = Array.from(this.content.querySelectorAll<HTMLElement>('.item-translate-btn'))
+      .filter(btn => !btn.classList.contains('translated'));
+
+    if (btns.length === 0) return;
+
+    let idx = 0;
+    const processBatch = async () => {
+      if (controller.signal.aborted) return;
+
+      const batch = btns.slice(idx, idx + AUTO_TRANSLATE_CONCURRENCY);
+      if (batch.length === 0) return;
+      idx += batch.length;
+
+      await Promise.allSettled(
+        batch.map(async (btn) => {
+          if (controller.signal.aborted) return;
+          const text = btn.dataset.text;
+          if (!text) return;
+
+          const cached = translationCache.get(text);
+          if (cached) {
+            this.applyTranslation(btn, cached, text);
+            return;
+          }
+
+          btn.innerHTML = '...';
+          btn.style.pointerEvents = 'none';
+          try {
+            const translated = await translateText(text, currentLang);
+            if (controller.signal.aborted) return;
+            if (translated) {
+              translationCache.set(text, translated);
+              this.applyTranslation(btn, translated, text);
+            } else {
+              btn.innerHTML = '文';
+              btn.style.pointerEvents = 'auto';
+            }
+          } catch {
+            if (!controller.signal.aborted) {
+              btn.innerHTML = '文';
+              btn.style.pointerEvents = 'auto';
+            }
+          }
+        })
+      );
+
+      if (!controller.signal.aborted && idx < btns.length) {
+        setTimeout(processBatch, AUTO_TRANSLATE_STAGGER_MS);
+      }
+    };
+
+    // Delay first batch slightly so the panel renders immediately
+    setTimeout(processBatch, 300);
+  }
+
+  private applyTranslation(btn: HTMLElement, translated: string, originalText: string): void {
+    const titleEl = btn.closest('.item')?.querySelector('.item-title') as HTMLElement;
+    if (titleEl) {
+      titleEl.dataset.original = titleEl.textContent || '';
+      titleEl.textContent = translated;
+    }
+    btn.innerHTML = '✓';
+    btn.title = 'Original: ' + originalText;
+    btn.classList.add('translated');
+    btn.style.pointerEvents = 'auto';
+  }
+
   private showSummary(summary: string): void {
     if (!this.summaryContainer) return;
     this.summaryContainer.style.display = 'block';
@@ -357,6 +448,7 @@ export class NewsPanel extends Panel {
       .join('');
 
     this.setContent(html);
+    this.scheduleAutoTranslate();
   }
 
   private renderClusters(clusters: ClusteredEvent[]): void {
@@ -605,6 +697,8 @@ export class NewsPanel extends Panel {
         if (text) this.handleTranslate(btn, text);
       });
     });
+
+    this.scheduleAutoTranslate();
   }
 
   private getLocalizedAssetLabel(type: RelatedAsset['type']): string {
@@ -622,6 +716,9 @@ export class NewsPanel extends Panel {
    * Clean up resources
    */
   public destroy(): void {
+    this.autoTranslateAbort?.abort();
+    this.autoTranslateAbort = null;
+
     // Clean up windowed list
     this.windowedList?.destroy();
     this.windowedList = null;

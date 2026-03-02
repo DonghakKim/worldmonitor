@@ -4,6 +4,8 @@ const DISMISSED_KEY = 'wm-community-dismissed';
 const DISCUSSION_URL = 'https://www.koreavendordata.com';
 
 export function mountCommunityWidget(): void {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('noCommunity') === '1') return;
   if (localStorage.getItem(DISMISSED_KEY) === 'true') return;
   if (document.querySelector('.community-widget')) return;
 

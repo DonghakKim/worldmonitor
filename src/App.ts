@@ -255,6 +255,44 @@ export class App {
       localStorage.setItem(REQUIRED_PANELS_MIGRATION_KEY, 'done');
     }
 
+    // Embed override: hide specific panels entirely (runs AFTER all migrations).
+    // Example: ?hidePanels=population-exposure,satellite-fires
+    const hidePanelsParam = initialUrlParams.get('hidePanels');
+    if (hidePanelsParam) {
+      const panelsToHide = hidePanelsParam.split(',').map(p => p.trim()).filter(Boolean);
+      let changed = false;
+      for (const key of panelsToHide) {
+        if (panelSettings[key]) {
+          panelSettings[key] = { ...panelSettings[key]!, enabled: false };
+          changed = true;
+        }
+      }
+      if (changed) {
+        saveToStorage(STORAGE_KEYS.panels, panelSettings);
+      }
+    }
+
+    // Embed override: push specific panels to the bottom of the right sidebar.
+    // Example: ?rightBottomPanels=economic,trade-policy
+    const rightBottomPanelsParam = initialUrlParams.get('rightBottomPanels');
+    if (rightBottomPanelsParam) {
+      const rightBottom = rightBottomPanelsParam.split(',').map(p => p.trim()).filter(Boolean);
+      const validRightBottom = rightBottom.filter(key => key in DEFAULT_PANELS && key !== 'map');
+      if (validRightBottom.length > 0) {
+        try {
+          const currentOrder: string[] = JSON.parse(localStorage.getItem(PANEL_ORDER_KEY) || '[]');
+          if (currentOrder.length > 0) {
+            const rightBottomSet = new Set(validRightBottom);
+            const filtered = currentOrder.filter(k => !rightBottomSet.has(k));
+            filtered.push(...validRightBottom.filter(k => currentOrder.includes(k) || k in DEFAULT_PANELS));
+            localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(filtered));
+          }
+        } catch {
+          // Invalid saved order, skip reorder
+        }
+      }
+    }
+
     let initialUrlState: ParsedMapUrlState | null = parseMapUrlState(window.location.search, mapLayers);
     if (initialUrlState.layers) {
       if (currentVariant === 'tech') {

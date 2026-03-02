@@ -71,6 +71,8 @@ export interface PanelLayoutCallbacks {
   loadSecurityAdvisories?: () => Promise<void>;
 }
 
+const LOCK_BOTTOM_PANELS = new URLSearchParams(window.location.search).get('lockBottomPanels') === '1';
+
 export class PanelLayoutManager implements AppModule {
   private ctx: AppContext;
   private callbacks: PanelLayoutCallbacks;
@@ -696,13 +698,14 @@ export class PanelLayoutManager implements AppModule {
     const savedOrder = this.getSavedPanelOrder();
     const savedBottomOrder = this.getSavedBottomPanelOrder();
     const isUltraWide = window.innerWidth >= 1600;
+    const showBottomPanels = isUltraWide || LOCK_BOTTOM_PANELS;
 
     let panelOrder = defaultOrder;
     if (savedOrder.length > 0 || savedBottomOrder.length > 0) {
       const allSaved = [...savedOrder, ...savedBottomOrder];
       const missing = defaultOrder.filter(k => !allSaved.includes(k));
       const valid = savedOrder.filter(k => defaultOrder.includes(k));
-      const validBottom = isUltraWide ? savedBottomOrder.filter(k => defaultOrder.includes(k)) : [];
+      const validBottom = showBottomPanels ? savedBottomOrder.filter(k => defaultOrder.includes(k)) : [];
 
       const monitorsIdx = valid.indexOf('monitors');
       if (monitorsIdx !== -1) valid.splice(monitorsIdx, 1);
@@ -880,7 +883,7 @@ export class PanelLayoutManager implements AppModule {
     const isUltraWide = window.innerWidth >= 1600;
     const mapSection = document.getElementById('mapSection');
     const mapEnabled = !mapSection?.classList.contains('hidden');
-    const effectiveUltraWide = isUltraWide && mapEnabled;
+    const effectiveUltraWide = (isUltraWide || LOCK_BOTTOM_PANELS) && mapEnabled;
 
     if (effectiveUltraWide === this.wasUltraWide) return;
     this.wasUltraWide = effectiveUltraWide;
