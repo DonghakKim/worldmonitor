@@ -71,6 +71,7 @@ export interface PanelLayoutCallbacks {
   loadSecurityAdvisories?: () => Promise<void>;
 }
 
+/** When true, bottom panels (supply-chain, commodities, heatmap) show regardless of viewport width. */
 const LOCK_BOTTOM_PANELS = new URLSearchParams(window.location.search).get('lockBottomPanels') === '1';
 
 export class PanelLayoutManager implements AppModule {
