@@ -64,6 +64,7 @@ export default function middleware(request: Request) {
     const variant = VARIANT_HOST_MAP[host];
     if (variant && isAllowedHost(host)) {
       const og = VARIANT_OG[variant];
+      if (!og) return;
       const html = `<!DOCTYPE html><html><head>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="${og.title}"/>
